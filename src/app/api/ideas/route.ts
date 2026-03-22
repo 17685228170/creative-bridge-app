@@ -6,6 +6,8 @@ import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
+export const dynamic = 'force-dynamic';
+
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || "104857600"); // 100MB
 

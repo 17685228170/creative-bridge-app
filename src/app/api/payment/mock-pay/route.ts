@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
 // 模拟支付接口（开发测试用）
 export async function GET(req: NextRequest) {
   try {
