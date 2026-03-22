@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyToken } from "@/lib/crypto";
 
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 // 标记为动态路由
 export const dynamic = 'force-dynamic';
 

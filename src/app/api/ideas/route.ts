@@ -6,6 +6,9 @@ import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 export const dynamic = 'force-dynamic';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
