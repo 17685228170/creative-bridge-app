@@ -4,8 +4,8 @@ const nextConfig = {
     unoptimized: true,
   },
   
-  // 输出配置
-  output: 'standalone',
+  // Vercel 不需要 standalone 模式
+  // output: 'standalone',
   
   // 静态文件服务配置
   async rewrites() {
@@ -29,18 +29,7 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
         ],
       },
-      {
-        source: '/uploads/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
     ];
-  },
-  
-  // 实验性功能
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
   },
 };
 
