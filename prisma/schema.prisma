@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   // CREATOR 或 ENTERPRISE
+  avatar    String?
+  
+  // VIP 信息
+  vipLevel      String?   // free/silver/gold
+  vipExpiresAt  DateTime?
+  
+  // 资产信息
+  balance       Int       @default(0) // 分
+  frozenBalance Int       @default(0) // 分
+  totalIncome   Int       @default(0) // 分
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 创作者端
+  ideas     Idea[]
+  
+  // 企业端
+  demands   Demand[]
+  
+  // 合作意向（双向）
+  sentIntents     Intent[] @relation("SentIntents")
+  receivedIntents Intent[] @relation("ReceivedIntents")
+  
+  // 交易记录
+  transactions Transaction[]
+  orders       Order[]
+  withdraws    Withdraw[]
+  tradesAsCreator Trade[] @relation("CreatorTrades")
+  tradesAsEnterprise Trade[] @relation("EnterpriseTrades")
+
+  @@map("users")
+}
+
+model Idea {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  category    String    // 创意分类：工业设计/平面设计/文创/IP等
+  images      String    // JSON 数组存储图片URL
+  fileHash    String    @unique // 文件SHA256哈希
+  status      String    @default("PENDING") // PENDING/APPROVED/REJECTED/PRIVATE
+  
+  // 新增字段
+  tags        String?   // JSON 标签数组
+  publishMode String    @default("vault") // private/vault/public
+  views       Int       @default(0)
+  likes       Int       @default(0)
+  
+  // 关联
+  creatorId   String
+  creator     User      @relation(fields: [creatorId], references: [id])
+  
+  // 存证信息
+  certificate Certificate?
+  
+  // 合作意向
+  intents     Intent[]
+  
+  // 交易记录
+  trades      Trade[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("ideas")
+}
+
+model Certificate {
+  id            String   @id @default(cuid())
+  ideaId        String   @unique
+  idea          Idea     @relation(fields: [ideaId], references: [id])
+  
+  // 蚂蚁链存证信息
+  txHash        String   @unique // 链上交易哈希
+  chainId       String   // 链ID
+  blockNumber   String?  // 区块高度
+  certNo        String   @unique // 证书编号
+  certUrl       String?  // 证书查看链接
+  
+  // 存证内容
+  contentHash   String   // 内容哈希（包含文件哈希+时间戳+创作者信息）
+  metadata      String?  // JSON 存证元数据
+  
+  createdAt     DateTime @default(now())
+
+  @@map("certificates")
+}
+
+model Demand {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String   // 需求分类
+  budget      String?  // 预算范围
+  deadline    DateTime? // 截止日期
+  status      String   @default("OPEN") // OPEN/CLOSED/COMPLETED
+  
+  // 新增字段
+  applicants  Int      @default(0) // 报名人数
+  views       Int      @default(0) // 浏览量
+  
+  // 关联
+  enterpriseId String
+  enterprise   User     @relation(fields: [enterpriseId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("demands")
+}
+
+model Intent {
+  id          String   @id @default(cuid())
+  
+  // 意向类型：CREATOR_TO_ENTERPRISE 或 ENTERPRISE_TO_CREATOR
+  type        String   // CREATOR_TO_ENTERPRISE/ENTERPRISE_TO_CREATOR
+  status      String   @default("PENDING") // PENDING/ACCEPTED/REJECTED/COMPLETED
+  message     String?  // 留言
+  contact     String?  // 联系方式
+  
+  // 关联
+  ideaId      String?
+  idea        Idea?    @relation(fields: [ideaId], references: [id])
+  
+  fromId      String
+  from        User     @relation("SentIntents", fields: [fromId], references: [id])
+  
+  toId        String
+  to          User     @relation("ReceivedIntents", fields: [toId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("intents")
+}
+
+// 订单表（VIP购买等）
+model Order {
+  id            String   @id @default(cuid())
+  orderNo       String   @unique
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  type          String   // VIP/OTHER
+  planId        String?  // silver/gold
+  billingCycle  String?  // monthly/yearly
+  amount        Int      // 分
+  
+  status        String   @default("PENDING") // PENDING/PAID/CANCELLED/REFUNDED
+  paymentMethod String?  // alipay/wechat
+  paidAt        DateTime?
+  transactionId String?  // 第三方支付流水号
+  
+  metadata      String?  // JSON 扩展信息
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("orders")
+}
+
+// 提现表
+model Withdraw {
+  id            String   @id @default(cuid())
+  withdrawNo    String   @unique
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  amount        Int      // 提现金额（分）
+  fee           Int      // 手续费（分）
+  actualAmount  Int      // 实际到账（分）
+  
+  bankName      String   // 银行名称
+  cardNo        String   // 银行卡号（后4位）
+  cardHolder    String   // 持卡人姓名
+  
+  status        String   @default("PENDING") // PENDING/PROCESSING/COMPLETED/FAILED
+  completedAt   DateTime?
+  
+  failReason    String?  // 失败原因
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("withdraws")
+}
+
+// 交易记录表
+model Transaction {
+  id          String   @id @default(cuid())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  type        String   // income/expense
+  title       String   // 交易标题
+  amount      Int      // 金额（分，收入为正，支出为负）
+  
+  status      String   @default("completed") // pending/completed/failed
+  
+  orderNo     String?  // 关联订单号
+  source      String?  // 来源/去向
+  
+  createdAt   DateTime @default(now())
+
+  @@map("transactions")
+}
+
+// 创意交易表（含抽成）
+model Trade {
+  id            String   @id @default(cuid())
+  tradeNo       String   @unique
+  
+  // 关联创意
+  ideaId        String
+  idea          Idea     @relation(fields: [ideaId], references: [id])
+  
+  // 关联需求（可选）
+  demandId      String?
+  
+  // 交易双方
+  creatorId     String
+  creator       User     @relation("CreatorTrades", fields: [creatorId], references: [id])
+  
+  enterpriseId  String
+  enterprise    User     @relation("EnterpriseTrades", fields: [enterpriseId], references: [id])
+  
+  // 交易信息
+  type          String   // license(授权)/sale(出售)/cooperation(合作)
+  amount        Int      // 交易金额（分）
+  description   String?  // 交易描述
+  
+  // 抽成信息
+  commission       Int      // 平台抽成（分）
+  commissionRate   Float    // 抽成比例（0.15 = 15%）
+  creatorIncome    Int      // 创作者实际收入（分）
+  
+  // 支付信息
+  status           String   @default("PENDING") // PENDING/PAID/COMPLETED/CANCELLED/REFUNDED
+  paidAt           DateTime?
+  paymentMethod    String?  // alipay/wechat
+  
+  // 平台收入关联
+  platformIncome   PlatformIncome?
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("trades")
+}
+
+// 平台收入表（抽成统计）
+model PlatformIncome {
+  id          String   @id @default(cuid())
+  
+  tradeId     String   @unique
+  trade       Trade    @relation(fields: [tradeId], references: [id])
+  
+  amount      Int      // 抽成金额（分）
+  rate        Float    // 抽成比例
+  description String?  // 描述
+  
+  createdAt   DateTime @default(now())
+
+  @@map("platform_incomes")
+}
